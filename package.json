@@ -1,0 +1,16 @@
+{
+  "name": "marketing-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "whats": "node index.js"
+  },
+  "dependencies": {
+    "date-fns": "^2.29.2",
+    "fs": "^0.0.1-security",
+    "node-cron": "^3.0.2",
+    "whatsapp-web.js": "^1.17.1",
+    "xlsx": "^0.18.5"
+  }
+}
