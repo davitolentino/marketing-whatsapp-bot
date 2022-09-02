@@ -1,75 +1,72 @@
-const { Client, LocalAuth } = require('whatsapp-web.js')
+const { Client, LocalAuth } = require("whatsapp-web.js");
+const cron = require("node-cron");
+const { join } = require("path");
+const { messageMediaFromFilePath } = require("./utils/messageMedia");
+const { sleep } = require("./utils/sleep");
 
-const reader = require('xlsx')
-let data = []
+const reader = require("xlsx");
+let data = [];
+let haveSend = false;
+let finishSend = false;
+const pathXlsx = "./Contatos.xlsx";
+const pathImage = join(__dirname, "imagem.jpeg");
+const timeToSendMessage = 5000;
 
 try {
-  const file = reader.readFile('./planilha.xlsx')
+  const file = reader.readFile(pathXlsx);
 
-  const sheets = file.SheetNames
+  const sheets = file.SheetNames;
 
   for (let i = 0; i < sheets.length; i++) {
-    const temp = reader.utils.sheet_to_json(file.Sheets[file.SheetNames[i]])
+    const temp = reader.utils.sheet_to_json(file.Sheets[file.SheetNames[i]]);
     temp.forEach((res) => {
-      data.push(res)
-    })
+      data.push(res);
+    });
   }
 } catch (err) {
-  console.log('Erro')
+  console.log("Erro");
 }
 
 const client = new Client({
   authStrategy: new LocalAuth(),
-  puppeteer: { headless: false },
-})
+  puppeteer: { headless: true },
+});
 
-let isReady = false
+let isReady = false;
 
-client.initialize()
+client.initialize();
 
-client.on('qr', (qr) => {
-  console.log('QR RECEIVED', qr)
-})
+client.on("ready", async () => {
+  console.log("READY");
+  isReady = true;
+});
 
-client.on('ready', async () => {
-  console.log('READY')
-  isReady = true
-})
-
-client.on('message', async (msg) => {
-  console.log(msg)
-})
-
-const cron = require('node-cron')
-const { format } = require('date-fns')
-const { join } = require('path')
-const { messageMediaFromFilePath } = require('./utils/messageMedia')
-
-cron.schedule('* * * * *', async (date) => {
-  if (!isReady) return
+cron.schedule("* * * * *", async () => {
+  if (haveSend && finishSend) return console.log("Já pode fechar a aplicação");
+  if (!isReady || haveSend) return;
+  haveSend = true;
 
   try {
-    const time = format(new Date(date), 'HH:mm')
-    const chats = await client.getChats()
+    for (const planilha of data) {
+      if (planilha.Numero) {
+        let media = null;
 
-    if (time === '16:27' && chats.length > 0) {
-      for (const chat of chats) {
-        for (const planilha of data)
-          if (String(chat.id.user).includes(planilha.numero) && !chat.isGroup) {
-            let media = null
+        try {
+          media = messageMediaFromFilePath(pathImage);
+        } catch (err) {
+          console.log(err);
+        }
 
-            try {
-              media = messageMediaFromFilePath(
-                join(__dirname, '..', 'pao_de_mel.jpg'),
-              )
-            } catch (err) {}
+        await client.sendMessage(`${planilha.Numero}@c.us`, planilha.Mensagem, {
+          ...(media && { media }),
+        });
 
-            console.log(media)
-            chat.sendMessage(planilha.texto, { ...(media && { media }) })
-          }
+        await sleep(timeToSendMessage);
       }
     }
   } catch (err) {
-    console.log(err)
+    console.log(err);
   }
-})
+  finishSend = true;
+  haveSend = true;
+});
