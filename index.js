@@ -11,6 +11,7 @@ let finishSend = false;
 const pathXlsx = "./Contatos.xlsx";
 const pathImage = join(__dirname, "imagem.jpeg");
 const timeToSendMessage = 5000;
+const qrcode = require('qrcode-terminal')
 
 try {
   const file = reader.readFile(pathXlsx);
@@ -24,12 +25,17 @@ try {
     });
   }
 } catch (err) {
+  console.log(err)
   console.log("Erro");
 }
 
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: { headless: true },
+  webVersionCache: {
+    type: 'remote',
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2410.1.html',
+  }
 });
 
 let isReady = false;
@@ -40,6 +46,10 @@ client.on("ready", async () => {
   console.log("READY");
   isReady = true;
 });
+
+client.on('qr', (qr) => {
+  qrcode.generate(qr, { small: true })
+})
 
 cron.schedule("* * * * *", async () => {
   if (haveSend && finishSend) return console.log("Já pode fechar a aplicação");
